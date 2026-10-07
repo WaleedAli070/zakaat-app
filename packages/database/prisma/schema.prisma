@@ -1,0 +1,133 @@
+// schema.prisma
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Fiqh {
+  HANAFI
+  SHAFII
+  MALIKI
+  HANBALI
+  GENERAL
+}
+
+enum AssetCategory {
+  CASH
+  GOLD
+  SILVER
+  STOCK           // Individual Shares / Mutual Funds
+  RETIREMENT      // 401k, IRA, Provident Fund (Applies 'Net Withdrawable' logic)
+  REAL_ESTATE
+}
+
+enum Currency {
+    USD
+    PKR
+    INR
+    GBP
+    EUR
+    AED
+    SAR
+    OKT
+}
+
+enum NisabStandard {
+    SILVER
+    GOLD
+}
+
+enum MasarifCategory { // Qur'anic Category (Poor, Needy, etc.)
+    Poor // Fuqara
+    Needy // Masakin
+    ZakaatAdministrators
+    ReconciliationOfHearts
+    FreeingCaptives
+    Debtors
+    InTheCauseOfGod
+    TheWayfarer
+}
+
+model User {
+  id                String         @id @default(uuid())
+  email             String         @unique
+  fiqh              Fiqh           @default(GENERAL)
+  baseCurrency      Currency       @default(USD)
+  nisabStandard     NisabStandard  @default(SILVER)
+  hawlStartDate     DateTime
+  assets            Asset[]
+  liabilities       Liability[]
+  payments          Payment[]
+  periods           ZakaatPeriod[]
+  createdAt         DateTime       @default(now())
+}
+
+model Asset {
+  id              String        @id @default(uuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  category        AssetCategory
+  name            String
+  weightGrams     Decimal?      @db.Decimal(10, 4)
+  purityKarat     Int?          // 18, 21, 22, 24
+  cashValue       Decimal?      @db.Decimal(15, 2)
+  isInvestment    Boolean       @default(false)
+  hasPossession   Boolean       @default(true) // For Pakistan Plot Files
+  stockType       String?       // "TRADER" or "PASSIVE"
+  currencyCode    Currency?
+  createdAt       DateTime      @default(now())
+}
+
+model Liability {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  type            String   // "IMMEDIATE" or "LONG_TERM"
+  amount          Decimal  @db.Decimal(15, 2)
+  monthlyPayment  Decimal? @db.Decimal(15, 2)
+  description     String?
+}
+
+model Payment {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  amount          Decimal  @db.Decimal(15, 2)
+  category        MasarifCategory
+  recipient       String?
+  paidAt          DateTime @default(now())
+}
+
+model ZakaatPeriod {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  startDate       DateTime
+  status          String   @default("ACTIVE") // "ACTIVE" or "CLOSED"
+  totalDue        Decimal  @default(0) @db.Decimal(15, 2)
+}
+
+model DailyMetalRate {
+  id           String        @id @default(uuid())
+  metal        AssetCategory // GOLD, SILVER
+  currency     Currency
+  date         DateTime      @db.Date
+  pricePerGram Decimal       @db.Decimal(10, 4)
+
+  @@unique([metal, currency, date])
+}
+
+model DailyExchangeRate {
+  id             String   @id @default(uuid())
+  sourceCurrency Currency // e.g. USD
+  targetCurrency Currency // e.g. PKR
+  date           DateTime @db.Date
+  rate           Decimal  @db.Decimal(10, 4)
+
+  @@unique([sourceCurrency, targetCurrency, date])
+}
