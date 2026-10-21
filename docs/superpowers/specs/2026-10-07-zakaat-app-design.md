@@ -1,6 +1,6 @@
 # Zakaat App — Design Specification v2
 
-**Date:** 2026-10-07 · **Status:** Draft for review · **Supersedes:** `design_document.md` v1.1
+**Date:** 2026-10-07, revised 2026-10-21 · **Status:** Draft for review · **Supersedes:** `design_document.md` v1.1
 **Companion documents:** `docs/design-review-2026-10-07.md` (review and rationale), `docs/research-fiqh-2026-10-07.md` (sourced rule matrix), `docs/research-technical-2026-10-07.md`, `docs/research-market-2026-10-07.md`.
 
 ---
@@ -15,7 +15,7 @@ Principles, in priority order:
 2. **The user's mode drives all logic.** No implicit mixing of schools in one calculation. The audit trail cites only the selected mode and the user's explicit overrides.
 3. **Auditability.** Every calculation is a frozen snapshot: inputs, prices, rule set, engine version, and structured explanations. Past years remain reproducible after prices and rules change.
 4. **Privacy by architecture.** Financial data lives on the user's device and, if they sign in, in a database only they can read. No analytics on amounts, no location permission, no in-app donations.
-5. **Free to use, near-zero to run.** Free tiers everywhere; the first paid step is at 100 signed-in users.
+5. **Free to use, near-zero to run.** Free tiers everywhere; the first paid step is when daily Firestore traffic outgrows the free plan (several hundred daily syncs).
 
 Non-goals for v1: fatwa issuance, business inventory, crypto as a distinct category, Zakat al-Fitr, livestock and agricultural zakat, routing or collecting payments, a majority-view ("Jumhūr") mode, per-lot hawl tracking, Arabic or Urdu UI, non-Sunni jurisprudence, household or multi-payer accounts.
 
@@ -40,14 +40,14 @@ Target user for v1: an individual Muslim in Pakistan or the Pakistani diaspora w
 | Carry-forward | Shortfall or overpayment carried to the next period; overpayment can instead be marked as sadaqah |
 | Reports | Current period summary; year-over-year zakat due and paid; distribution by category; per-period PDF statement |
 | Prices | Daily signed price file (gold, silver, FX) from licensed sources; local-market per-tola override |
-| Accounts | Optional. Works fully without sign-in. Sign-in (Apple, Google, email OTP) enables sync and backup across devices and in-app account deletion |
-| Notifications | Local: 30, 10, 1 days before the anniversary |
+| Accounts | Optional. Works fully without sign-in and without anonymous auth; data stays on the device. Sign-in (Apple, Google, email link via Firebase Auth) enables sync and backup across devices and in-app account deletion |
+| Notifications | Local scheduled: 30, 10, 1 days before the anniversary. Remote push (FCM topics) is wired but not sent in v1 |
 | Web | Static `/calculator` route, no persistence, for Ramadan search traffic |
 | Platforms | iOS and Android via Expo SDK 57 |
 
 ### 2.2 Deferred (v2 candidates)
 
-Business inventory and trade receivables as first-class categories · crypto category · majority-view mode · per-lot hawl · Arabic and Urdu localisation · remote push ("gold crossed nisab") · export/import between households · licensed local-market feeds (Sarafa, IBJA) · passkeys.
+Business inventory and trade receivables as first-class categories · crypto category · majority-view mode · per-lot hawl · Arabic and Urdu localisation · remote push ("gold crossed nisab") · export/import between households · licensed local-market feeds (Sarafa, IBJA) · passkeys · remote push alerts (nisab movement, Ramadan) over FCM topics.
 
 ---
 
@@ -112,48 +112,52 @@ Nisab in base currency on the close date = grams × price per gram from the pric
 ### 4.1 Components
 
 ```
-┌──────────────────────────┐      sync (libSQL embedded replica)      ┌──────────────────────┐
-│  Expo app (SDK 57)       │◄────────────────────────────────────────►│  Turso: 1 DB / user  │
-│  expo-sqlite (libSQL)    │                                          └──────────────────────┘
-│  Drizzle · packages/core │      HTTPS (auth, tokens, deletion)      ┌──────────────────────┐
-│  TanStack Query          │◄────────────────────────────────────────►│  Cloudflare Worker   │
-│  Local notifications     │                                          │  Hono + Better Auth  │
-└──────────────────────────┘      HTTPS GET (signed daily JSON)       │  auth DB: Turso      │
-            ▲                                                          │  Cron → KV: prices   │
-            └──────────────────────────────────────────────────────────┴──────────────────────┘
+┌──────────────────────────────┐   sync adapter (outbox push / cursor pull)   ┌────────────────────────────┐
+│  Expo app (SDK 57)           │◄───────────────────────────────────────────►│  Firestore                 │
+│  expo-sqlite + Drizzle       │   Firebase Auth (Apple, Google, email link)  │  users/{uid}/… per user    │
+│  packages/core (all zakat    │◄───────────────────────────────────────────►│  security rules: owner-only│
+│  logic runs here)            │                                              │  append-only collections   │
+│  Local notifications         │   HTTPS GET signed daily JSON                └────────────────────────────┘
+│  FCM topic subscription (v2) │◄───────────────────────────────────────────►┌────────────────────────────┐
+└──────────────────────────────┘   DELETE /account (Apple token revocation)   │  Cloudflare Worker (Hono)  │
+                                                                              │  cron → KV: prices         │
+                                                                              │  FCM topic sender (v2)     │
+                                                                              └────────────────────────────┘
 ```
 
-- **Expo app.** All zakat logic runs on-device in `packages/core`. The local libSQL database is the source of truth. Works fully without an account.
-- **Sync.** On sign-in, the API creates a Turso database for the user and issues a token scoped to it. The app reopens its local database as an embedded replica of that remote (`useLibSQL`, `libSQLOptions`) and calls `syncLibSQL()` on foreground, after each write, and before period close. Conflict resolution is last-push-wins; acceptable because data is single-user and the ledger is append-only. Tokens are rotated by the API every 30 days and on sign-out.
-- **API (Cloudflare Worker, Hono, Better Auth with `nodejs_compat`).** Endpoints: Better Auth routes (Apple native ID token, Google native ID token, email OTP via Resend), `POST /sync/provision` (create user DB, return scoped token), `POST /sync/token` (rotate), `DELETE /account` (revoke Apple token via Apple's REST API, destroy the user's Turso DB, delete auth rows), `GET /prices/latest`, `GET /prices/:date`. The Worker never receives zakat data.
-- **Auth database.** One Turso database for Better Auth tables and the `user → turso_db_name` map, accessed via `@libsql/client` over HTTP.
-- **Price publisher.** Cloudflare Cron Trigger daily at 06:00 UTC in the same Worker; writes signed JSON to Workers KV; served by the `GET /prices/*` routes with cache headers.
-- **Observability.** Sentry (React Native SDK with the Expo config plugin; Sentry for Workers), Sentry cron monitor on the price job, PostHog with event names only.
+- **Expo app.** All zakat logic runs on-device in `packages/core`. The local SQLite database (expo-sqlite, Drizzle) is the source of truth for every user, signed in or not. Nothing leaves the device unless the user signs in.
+- **Firebase Auth.** Apple (native on iOS via `expo-apple-authentication`, web flow on Android), Google (native), and email-link sign-in using the post-Dynamic-Links SDK path. Free to 50k MAU. Users are keyed by Firebase `uid`.
+- **Firestore as sync target, not as store.** Signed-in users get `users/{uid}` with subcollections mirroring the local tables. Security rules: only `request.auth.uid == uid` may read or write; `ledgerEntries`, `assetValues`, `snapshots` allow `create` only (no `update`, no `delete`); `profile`, `assets`, `liabilities`, `periods`, `recipients` allow owner update; nothing allows delete except through account deletion, which removes the whole subtree. Firestore's own offline cache is disabled; the app never queries Firestore directly for UI.
+- **Sync adapter (`packages/sync`).** Local-first: every write lands in SQLite and appends a row to `sync_outbox`. On foreground, after each write batch, and before period close, the adapter pushes outbox rows as Firestore document writes (batched, idempotent by row id) and pulls documents with `updated_at > last_pull_cursor` into SQLite. Append-only tables merge by union; mutable tables resolve last-write-wins by `updated_at` with `device_id` as tiebreaker. A fresh device signs in, pulls everything, and rebuilds the local database. Sign-out keeps local data by default and offers "remove from this device".
+- **Cloudflare Worker (Hono).** Price cron (daily, writes signed JSON to KV), `GET /prices/latest` and `GET /prices/:date`, and `DELETE /account`: verifies the Firebase ID token against Google's JWKS, revokes the Apple refresh token via Apple's REST API, then returns; the client deletes its Firestore subtree (allowed by rules for the owner) and calls Firebase `user.delete()`. From v2 the Worker also publishes FCM topic messages (per base currency) for nisab movement and Ramadan reminders via the FCM HTTP v1 API; topic messaging stores no device tokens server-side. No zakat data ever passes through the Worker.
+- **Notifications.** v1: local scheduled only (30, 10, 1 days before the anniversary), rescheduled on every app open. v2: FCM topic subscriptions for broadcast alerts; hawl reminders stay local permanently because the device already knows the dates and local delivery cannot fail on a server outage.
+- **Observability.** Sentry (React Native SDK with the Expo config plugin; Sentry for Workers), Sentry cron monitor on the price job, PostHog with event names only. Firebase Analytics and Crashlytics are not used.
 
 ### 4.2 Free-tier envelope and upgrade triggers
 
 | Component | Free limit | Upgrade trigger |
 |---|---|---|
-| Turso | 100 databases, 5 GB, 3 GB sync/month | 99 signed-in users → Developer $4.99/month |
+| Firestore (Spark) | 1 GiB, 50k reads/day, 20k writes/day | ~150 full syncs/day (≈300 docs each) → Blaze pay-as-you-go with budget alerts (no hard cap) |
+| Firebase Auth | 50k MAU | not expected in v1 |
 | Cloudflare Workers | 100k requests/day, 10 ms CPU | not expected in v1 |
 | Workers KV | 100k reads/day, 1k writes/day | ~50k daily active price fetches; the app caches the file per day |
-| Resend | 3k emails/month | ~1k OTP sign-ins per month |
 | EAS Build | 30 builds/month | solo dev cadence fits |
 | EAS Update | 1,000 MAU | first Ramadan with >1,000 active users → Starter $19 or stop using OTA |
 | metals.dev | paid from day one | Copper plan $1.79/month |
 
-Fallback if Better Auth on Workers proves unreliable: the same Hono app in a $5 Railway container, no code changes.
+Users who never sign in consume no Firebase quota at all.
 
 ### 4.3 Monorepo layout (fresh scaffold)
 
 ```
 /zakaat-app
 ├── apps/
-│   ├── mobile/        # Expo SDK 57, Expo Router, Drizzle + expo-sqlite, TanStack Query
-│   └── api/           # Cloudflare Worker: Hono + Better Auth + price cron
+│   ├── mobile/        # Expo SDK 57, Expo Router, Drizzle + expo-sqlite, TanStack Query, Firebase Auth
+│   └── api/           # Cloudflare Worker: Hono, price cron, account deletion, FCM sender (v2)
 ├── packages/
 │   ├── core/          # pure rules engine, Hijri, units, money; no I/O
-│   ├── db/            # Drizzle schema + migrations shared by mobile (sqlite) and tests
+│   ├── db/            # Drizzle schema + migrations for the on-device SQLite; shared by tests
+│   ├── sync/          # outbox push / cursor pull adapter over Firestore; Firestore security rules + tests
 │   ├── prices/        # price file schema, signature verify, fixtures (historical CSVs)
 │   └── ui/            # design tokens, shared components
 ├── docs/
@@ -161,13 +165,13 @@ Fallback if Better Auth on Workers proves unreliable: the same Hono app in a $5 
 └── pnpm-workspace.yaml
 ```
 
-Tooling: pnpm 9, Turborepo 2, TypeScript 5.9 strict, Vitest, fast-check, Biome or ESLint+Prettier (decided in plan), Maestro for mobile E2E, Wrangler for the Worker, EAS for builds. `.gitignore` excludes `node_modules`, `.env*` (except `.env.example`), `.expo`, `dist`, `.wrangler`.
+Tooling: pnpm 9, Turborepo 2, TypeScript 5.9 strict, Vitest, fast-check, Biome or ESLint+Prettier (decided in plan), Maestro for mobile E2E, Firebase Emulator Suite for rules and sync tests, Wrangler for the Worker, EAS for builds. `.gitignore` excludes `node_modules`, `.env*` (except `.env.example`), `.expo`, `dist`, `.wrangler`, `google-services.json`, `GoogleService-Info.plist`.
 
 ---
 
 ## 5. Data model
 
-All amounts and weights are decimal strings in SQLite and `Decimal` (decimal.js) in code. Every table has `id TEXT (UUIDv7)`, `created_at`, `updated_at`, `device_id`. Soft retirement via `retired_at`; hard deletes only through account deletion.
+All amounts and weights are decimal strings in SQLite and `Decimal` (decimal.js) in code. Every table has `id TEXT (UUIDv7)`, `created_at`, `updated_at`, `device_id`. Soft retirement via `retired_at`; hard deletes only through account deletion. The same table shapes are mirrored one-to-one as Firestore documents under `users/{uid}/<table>/{id}` for signed-in users.
 
 | Table | Key columns | Notes |
 |---|---|---|
@@ -180,6 +184,8 @@ All amounts and weights are decimal strings in SQLite and `Decimal` (decimal.js)
 | `recipient` | name, default_category, notes | |
 | `ledger_entry` | period_id, seq, kind (OBLIGATION, PAYMENT, ADJUSTMENT, REVERSAL, CARRY_FORWARD), amount (signed), currency, category (FUQARA, MASAKIN, AMILIN, MUALLAFAH, RIQAB, GHARIMIN, FI_SABILILLAH, IBN_SABIL), recipient_id, occurred_at, receipt_path, reverses_entry_id, note | append-only; app code has no UPDATE/DELETE path |
 | `price_cache` | date, kind (METAL, FX), symbol, quote_currency, rate, source, file_hash | copied from the daily file |
+| `sync_outbox` | table_name, row_id, op (UPSERT, APPEND), payload JSON, queued_at, attempts | drained by the sync adapter; empty for users who never sign in |
+| `sync_state` | uid, last_pull_cursor, last_push_at, device_id | single row per signed-in account |
 
 Derived, never stored: period balance = Σ obligation + Σ carry_in − Σ payment ± adjustments − reversals.
 
@@ -227,13 +233,16 @@ Period lifecycle: `OPEN` → (close) `CLOSED` with one authoritative snapshot an
 
 ## 9. Security and privacy
 
-- No account required; sign-in only enables sync and backup.
-- Per-user Turso database with a database-scoped token; tokens stored in `expo-secure-store` (`WHEN_UNLOCKED_THIS_DEVICE_ONLY`); rotated every 30 days and on sign-out.
-- On-device data protected by iOS complete file protection and Android file-based encryption; optional biometric lock on app open (`expo-local-authentication`). SQLCipher is not available together with libSQL in expo-sqlite; this is an accepted trade-off, revisited if expo-sqlite adds libSQL encryption.
-- The API never receives financial data. Worker secrets in Wrangler secrets. Apple token revocation on deletion.
-- App Store positioning: "zakat calculator and record keeper"; no bank connections; no in-app donations; charity links open externally. Privacy label: financial info is collected only for signed-in users and is linked to identity; stated plainly.
-- No location permission. Analytics event names only, opt-in.
-- Receipt photos stay on device and in the user's own Turso database as base64 only if under 200 KB; otherwise local-only with a note.
+- No account required and no anonymous auth. Users who do not sign in keep all data on the device; the app makes no network calls carrying their data.
+- Signed-in users: Firebase Auth identity; Firestore security rules restrict every document to its owner and make ledger entries, asset values and snapshots create-only. Rules are versioned in `packages/sync/firestore.rules` and tested in the Firebase Emulator on every PR.
+- Firebase ID tokens are held by the Firebase SDK; the Worker verifies them against Google's public JWKS for the one endpoint that needs identity (account deletion).
+- On-device data protected by iOS complete file protection and Android file-based encryption; optional biometric lock on app open (`expo-local-authentication`); SQLCipher via `useSQLCipher` is available since libSQL is no longer required, decided in the plan after measuring startup cost.
+- The Worker never receives financial data. Worker secrets (metals.dev key, Ed25519 signing key, Apple Services ID key, FCM service-account key from v2) in Wrangler secrets.
+- Account deletion: Worker revokes the Apple refresh token; client deletes its Firestore subtree and the Firebase user; local data removed on request. Meets App Store 5.1.1(v).
+- App Store positioning: "zakat calculator and record keeper"; no bank connections; no in-app donations; charity links open externally. Privacy labels: for users who sign in, financial info is collected and linked to identity for the purpose of sync and backup; stated plainly in-app before sign-in. Play data-safety form updated when FCM token registration ships in v2.
+- No location permission. Firebase Analytics disabled. PostHog event names only, opt-in.
+- Receipt photos stay on device; synced to Firestore as base64 only if under 200 KB, otherwise local-only with a note. (Firebase Storage is not used in v1.)
+- Firestore region chosen at project creation: `europe-west3` (Frankfurt) for v1; cannot be changed later, so documented as a one-time decision.
 
 ---
 
@@ -243,8 +252,9 @@ Period lifecycle: `OPEN` → (close) `CLOSED` with one authoritative snapshot an
 - **Property tests** (fast-check): due ≥ 0; due = 0 iff net < nisab; due monotone non-decreasing in zakatable assets; General due ≥ due in every other mode on the same inputs; base-currency round-trip within one minor unit; determinism.
 - **Snapshot tests** on `Explanation[]` per vector.
 - **Replay tests**: stored snapshot fixtures re-run through the pinned ruleset reproduce outputs byte for byte.
-- **App**: component tests for forms and interceptors; Maestro E2E: onboard → add gold and cash → preview → close → pay → verify balance; sync E2E against a Turso test database.
-- **API**: token isolation (user A's token cannot read user B's DB), deletion completeness, price validation and signature.
+- **App**: component tests for forms and interceptors; Maestro E2E: onboard → add gold and cash → preview → close → pay → verify balance; sync E2E against the Firebase Emulator.
+- **Sync**: Firestore rules tests in the Emulator (user A cannot read or write user B; create-only collections reject update and delete); adapter tests for push idempotency, pull cursor correctness, union merge of append-only tables, last-write-wins on mutable rows, and fresh-device rebuild equality (local DB after rebuild equals the original).
+- **API**: Firebase ID-token verification, Apple revocation call, deletion completeness, price validation and signature.
 - **Hijri**: conversion tests against published Umm al-Qura tables for 1440–1460 AH.
 
 ---
@@ -252,7 +262,7 @@ Period lifecycle: `OPEN` → (close) `CLOSED` with one authoritative snapshot an
 ## 11. Delivery and operations
 
 - GitHub Actions on every PR: typecheck, lint, Vitest for all packages, Maestro on a nightly schedule.
-- Worker deploy via Wrangler from `main`; prices cron verified by the Sentry monitor.
+- Worker deploy via Wrangler from `main`; Firestore rules deployed via the Firebase CLI from `main` after emulator tests pass; prices cron verified by the Sentry monitor.
 - Mobile: EAS Build free tier; EAS Update for JS-only fixes within Apple DPLA 3.3.1(B); Play closed test with 12 testers for 14 days starting at the first build; individual developer accounts for v1; D-U-N-S application started in parallel for a later entity transfer.
 - Launch target: public release 4–6 weeks before Ramadan 2027 (≈ mid-February 2027).
 
@@ -262,14 +272,15 @@ Period lifecycle: `OPEN` → (close) `CLOSED` with one authoritative snapshot an
 
 | Risk | Mitigation |
 |---|---|
-| Better Auth on Workers edge cases | Hono/Better Auth official Cloudflare example; Railway container fallback with no code change |
-| libSQL sync conflicts on settings rows | last-push-wins acceptable; settings changes also logged as ledger adjustments |
-| No SQLCipher with libSQL | OS file protection + biometric lock; monitor expo-sqlite releases |
+| Hand-written sync adapter bugs | Append-only tables make merge trivial; emulator tests for every merge case; rebuild-equality test; outbox is replayable |
+| Firestore Blaze has no hard spending cap | Budget alerts at $5 and $20; per-day read/write quotas monitored; sync pulls only changed documents |
+| Conflicts on mutable rows (profile, assets) | last-write-wins by `updated_at` with `device_id` tiebreak; settings changes also logged as ledger adjustments |
+| Firebase email-link sign-in on mobile after Dynamic Links shutdown | use the current SDK migration path; email link is the fallback behind Apple and Google, not the primary |
 | Hermes Intl Hijri formatting | vendored Umm al-Qura table; Intl for display only |
 | Scholar sign-off latency | ship with institutional citations; add named-scholar reviews to vectors as they arrive |
 | Rule defaults for Maliki/Hanbali retirement and plot files have thin school-specific sourcing | marked Low/Medium confidence in the matrix; shown to the user as institutional defaults with the option to change |
 | Price vendor outage | two independent sources per figure; bundled 30-day fallback; stale banner |
-| Turso free plan cap at 100 DBs | $4.99 upgrade at user 99; alerting on database count |
+| Firestore region is permanent | chosen once (`europe-west3`) and recorded here |
 
 ---
 
@@ -277,8 +288,10 @@ Period lifecycle: `OPEN` → (close) `CLOSED` with one authoritative snapshot an
 
 | Decision | Choice | Date |
 |---|---|---|
-| Backend shape | Local-first with per-user Turso sync; Worker API for auth/tokens/deletion/prices | 2026-10-07 |
-| Hosting | Cloudflare Workers + KV; Turso free → Developer at 100 users | 2026-10-07 |
+| Backend shape | Local-first SQLite for all users; Firestore as sync/backup target for signed-in users via a hand-written outbox/cursor adapter; no anonymous auth | 2026-10-21 (replaces Turso per-user sync, 2026-10-07) |
+| Auth | Firebase Auth (Apple, Google, email link) | 2026-10-21 (replaces Better Auth) |
+| Hosting | Cloudflare Workers + KV for prices, account deletion and (v2) FCM topic sends; Firebase Spark free tier | 2026-10-21 |
+| Notifications | v1 local scheduled only; v2 FCM topics sent from the Worker; hawl reminders stay local | 2026-10-21 |
 | Hawl detection | Year-end self-attestation; settings toggle reserved | 2026-10-07 |
 | Hawl model | One anniversary per user; annex everything; label advance in non-Hanafi modes | 2026-10-07 |
 | General mode | Maximum-zakat option per contested rule; majority-view mode deferred | 2026-10-07 |
@@ -287,5 +300,5 @@ Period lifecycle: `OPEN` → (close) `CLOSED` with one authoritative snapshot an
 | Overrides | Mode sets defaults; Advanced screen overrides | 2026-10-07 |
 | Scope | Business inventory and crypto out; "Other zakatable asset" category in | 2026-10-07 |
 | Entity | Individual developer accounts for v1 | 2026-10-07 |
-| Stack | Expo SDK 57, Drizzle, Hono, Better Auth, Vitest; fresh scaffold | 2026-10-07 |
+| Stack | Expo SDK 57, Drizzle + expo-sqlite, Hono, Firebase SDK, Vitest, Firebase Emulator; fresh scaffold | 2026-10-21 |
 | Prices | metals.dev + gold-api.com + open.er-api.com + frankfurter.dev; no scraping | 2026-10-07 |
