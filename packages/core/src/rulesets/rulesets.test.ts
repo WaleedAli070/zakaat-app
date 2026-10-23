@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { isOption, RULE_IDS, RULES } from '../rules/registry.js';
 import { MODES } from '../types.js';
-import { getRuleset, RULESETS, resolveRules } from './index.js';
+import { InvalidInputError } from '../validate.js';
+import {
+  getRuleset,
+  getRulesetById,
+  RULESETS,
+  RULESETS_BY_ID,
+  resolveRules,
+  UnknownRulesetError,
+} from './index.js';
 
 describe('rulesets', () => {
   it('every mode has a valid default for every rule', () => {
@@ -56,5 +64,23 @@ describe('rulesets', () => {
       const fromRegistry = RULE_IDS.filter((id) => RULES[id].overridable);
       expect(rs.overridable).toEqual(mode === 'GENERAL' ? [] : fromRegistry);
     }
+  });
+});
+
+describe('rulesets by id', () => {
+  it('looks up every ruleset by its id', () => {
+    for (const mode of MODES) {
+      const rs = getRuleset(mode);
+      expect(getRulesetById(rs.id)).toBe(rs);
+      expect(RULESETS_BY_ID[rs.id]).toBe(rs);
+    }
+  });
+  it('throws UnknownRulesetError for an unknown id', () => {
+    expect(() => getRulesetById('hanafi@1999.1')).toThrow(UnknownRulesetError);
+    expect(() => getRulesetById('toString')).toThrow(UnknownRulesetError);
+  });
+  it('resolveRules honours an explicit id and rejects a mode mismatch', () => {
+    expect(resolveRules('HANAFI', undefined, 'hanafi@2026.1').rulesetId).toBe('hanafi@2026.1');
+    expect(() => resolveRules('HANAFI', undefined, 'shafii@2026.1')).toThrow(InvalidInputError);
   });
 });

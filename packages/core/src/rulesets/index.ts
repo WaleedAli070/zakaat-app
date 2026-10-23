@@ -1,5 +1,6 @@
 import { isOption, RULE_IDS, RULES, type RuleId, type RuleSelection } from '../rules/registry.js';
 import type { Mode } from '../types.js';
+import { InvalidInputError } from '../validate.js';
 import { GENERAL_2026_1 } from './general.js';
 import { HANAFI_2026_1 } from './hanafi.js';
 import { HANBALI_2026_1 } from './hanbali.js';
@@ -34,15 +35,40 @@ export const RULESETS: Record<Mode, Ruleset> = {
   GENERAL: make('GENERAL', '2026.1', GENERAL_2026_1),
 };
 
+export const RULESETS_BY_ID: Record<string, Ruleset> = Object.fromEntries(
+  Object.values(RULESETS).map((rs) => [rs.id, rs]),
+);
+
+export class UnknownRulesetError extends Error {
+  constructor(public readonly rulesetId: string) {
+    super(`Unknown ruleset id: ${rulesetId}`);
+    this.name = 'UnknownRulesetError';
+  }
+}
+
 export function getRuleset(mode: Mode): Ruleset {
   return RULESETS[mode];
+}
+
+export function getRulesetById(id: string): Ruleset {
+  const rs = Object.hasOwn(RULESETS_BY_ID, id) ? RULESETS_BY_ID[id] : undefined;
+  if (!rs) throw new UnknownRulesetError(id);
+  return rs;
 }
 
 export function resolveRules(
   mode: Mode,
   overrides?: Partial<RuleSelection>,
+  rulesetId?: string,
 ): { rulesetId: string; rules: RuleSelection; appliedOverrides: RuleId[] } {
-  const rs = getRuleset(mode);
+  const rs = rulesetId === undefined ? getRuleset(mode) : getRulesetById(rulesetId);
+  if (rs.mode !== mode) {
+    throw new InvalidInputError(
+      'rulesetId',
+      'input',
+      `ruleset ${rs.id} is for mode ${rs.mode}, not ${mode}`,
+    );
+  }
   const rules: Record<string, string> = { ...rs.defaults };
   const applied: RuleId[] = [];
   if (overrides) {
