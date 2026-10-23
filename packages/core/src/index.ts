@@ -1,6 +1,7 @@
 export * from './citations/index.js';
 export * from './explain.js';
 export * from './hijri.js';
+export * from './liabilities.js';
 export * from './money.js';
 export * from './nisab.js';
 export * from './prices.js';
