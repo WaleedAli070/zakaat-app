@@ -1,0 +1,77 @@
+{
+  "name": "Shafii: worn jewellery exempt; cash alone below gold nisab",
+  "reviewedBy": null,
+  "sources": [
+    "https://seekersguidance.org/answers/zakat-shafii-fiqh/what-constitutes-the-type-of-jewellery-wearing-that-obviates-the-need-to-pay-zakat-thereon/",
+    "https://islamqa.info/en/answers/144734"
+  ],
+  "input": {
+    "mode": "SHAFII",
+    "baseCurrency": "USD",
+    "assets": [
+      {
+        "id": "g1",
+        "label": "Bangles",
+        "currency": "USD",
+        "category": "GOLD",
+        "weightGrams": "100",
+        "purity": "1",
+        "usage": "WORN"
+      },
+      {
+        "id": "c1",
+        "label": "Cash",
+        "currency": "USD",
+        "category": "CASH",
+        "amount": "5000"
+      }
+    ],
+    "liabilities": [],
+    "hawl": {
+      "startISO": "2025-03-01",
+      "closeISO": "2026-02-18",
+      "dipBelowNisab": "NO"
+    },
+    "prices": {
+      "asOf": "2026-10-01",
+      "perGram": {
+        "XAU": {
+          "USD": "100"
+        },
+        "XAG": {
+          "USD": "1",
+          "PKR": "280"
+        }
+      },
+      "fx": {
+        "USD": {
+          "USD": "1",
+          "PKR": "280",
+          "GBP": "0.8"
+        }
+      }
+    }
+  },
+  "expected": {
+    "grossZakatable": "5000",
+    "deductions": "0",
+    "net": "5000",
+    "zakatDue": "0",
+    "meetsNisab": false,
+    "hawlStatus": "DUE",
+    "explanationIncludes": [
+      {
+        "ruleId": "JEWELLERY_PERSONAL",
+        "option": "EXEMPT_IF_WORN",
+        "subjectId": "g1",
+        "effect": "EXCLUDE"
+      },
+      {
+        "ruleId": "NISAB_COMBINE_METALS",
+        "option": "SEPARATE",
+        "subjectId": "nisab",
+        "effect": "INFO"
+      }
+    ]
+  }
+}

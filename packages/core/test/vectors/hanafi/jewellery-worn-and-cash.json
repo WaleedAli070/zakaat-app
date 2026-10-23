@@ -1,0 +1,77 @@
+{
+  "name": "Hanafi: worn gold jewellery is zakatable alongside cash",
+  "reviewedBy": null,
+  "sources": [
+    "https://islamqa.org/hanafi/askimam/124146/zakat-on-gold-jewellery-2/",
+    "https://nzf.org.uk/nisab/"
+  ],
+  "input": {
+    "mode": "HANAFI",
+    "baseCurrency": "USD",
+    "assets": [
+      {
+        "id": "g1",
+        "label": "Bangles",
+        "currency": "USD",
+        "category": "GOLD",
+        "weightGrams": "100",
+        "purity": "1",
+        "usage": "WORN"
+      },
+      {
+        "id": "c1",
+        "label": "Cash",
+        "currency": "USD",
+        "category": "CASH",
+        "amount": "5000"
+      }
+    ],
+    "liabilities": [],
+    "hawl": {
+      "startISO": "2025-03-01",
+      "closeISO": "2026-02-18",
+      "dipBelowNisab": "NO"
+    },
+    "prices": {
+      "asOf": "2026-10-01",
+      "perGram": {
+        "XAU": {
+          "USD": "100"
+        },
+        "XAG": {
+          "USD": "1",
+          "PKR": "280"
+        }
+      },
+      "fx": {
+        "USD": {
+          "USD": "1",
+          "PKR": "280",
+          "GBP": "0.8"
+        }
+      }
+    }
+  },
+  "expected": {
+    "grossZakatable": "15000",
+    "deductions": "0",
+    "net": "15000",
+    "zakatDue": "375",
+    "meetsNisab": true,
+    "hawlStatus": "DUE",
+    "explanationIncludes": [
+      {
+        "ruleId": "JEWELLERY_PERSONAL",
+        "option": "ZAKATABLE",
+        "subjectId": "g1",
+        "effect": "INCLUDE"
+      },
+      {
+        "ruleId": "NISAB_METAL",
+        "option": "SILVER",
+        "subjectId": "nisab",
+        "effect": "INFO"
+      }
+    ]
+  }
+}

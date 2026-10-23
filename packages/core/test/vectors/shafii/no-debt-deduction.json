@@ -1,0 +1,70 @@
+{
+  "name": "Shafii: debts do not reduce zakat",
+  "reviewedBy": null,
+  "sources": ["https://islamqa.org/shafii/qibla-shafii/33932/zakat-debts-zakat-and-sadaqa/"],
+  "input": {
+    "mode": "SHAFII",
+    "baseCurrency": "PKR",
+    "assets": [
+      {
+        "id": "b1",
+        "label": "Bank",
+        "currency": "PKR",
+        "category": "BANK",
+        "amount": "3000000"
+      }
+    ],
+    "liabilities": [
+      {
+        "id": "m1",
+        "label": "House loan",
+        "kind": "LONG_TERM",
+        "currency": "PKR",
+        "totalOutstanding": "5000000",
+        "currentlyDue": "50000",
+        "dueWithinYear": "600000",
+        "interestWithinYear": "100000"
+      }
+    ],
+    "hawl": {
+      "startISO": "2025-03-01",
+      "closeISO": "2026-02-18",
+      "dipBelowNisab": "NO"
+    },
+    "prices": {
+      "asOf": "2026-10-01",
+      "perGram": {
+        "XAU": {
+          "USD": "100"
+        },
+        "XAG": {
+          "USD": "1",
+          "PKR": "280"
+        }
+      },
+      "fx": {
+        "USD": {
+          "USD": "1",
+          "PKR": "280",
+          "GBP": "0.8"
+        }
+      }
+    }
+  },
+  "expected": {
+    "grossZakatable": "3000000",
+    "deductions": "0",
+    "net": "3000000",
+    "zakatDue": "75000",
+    "meetsNisab": true,
+    "hawlStatus": "DUE",
+    "explanationIncludes": [
+      {
+        "ruleId": "DEBT_DEDUCTION_SCOPE",
+        "option": "NONE",
+        "subjectId": "m1",
+        "effect": "EXCLUDE"
+      }
+    ]
+  }
+}

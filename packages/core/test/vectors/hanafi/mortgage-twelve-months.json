@@ -1,0 +1,72 @@
+{
+  "name": "Hanafi: long-term mortgage deducts next 12 months net of interest",
+  "reviewedBy": null,
+  "sources": [
+    "https://nzf.org.uk/knowledge/payment-of-zakat-deductible-liabilities/",
+    "https://islamqa.org/hanafi/askimam/124321/zakaat-on-debt/"
+  ],
+  "input": {
+    "mode": "HANAFI",
+    "baseCurrency": "PKR",
+    "assets": [
+      {
+        "id": "b1",
+        "label": "Meezan",
+        "currency": "PKR",
+        "category": "BANK",
+        "amount": "1000000"
+      }
+    ],
+    "liabilities": [
+      {
+        "id": "m1",
+        "label": "House loan",
+        "kind": "LONG_TERM",
+        "currency": "PKR",
+        "totalOutstanding": "5000000",
+        "currentlyDue": "50000",
+        "dueWithinYear": "600000",
+        "interestWithinYear": "100000"
+      }
+    ],
+    "hawl": {
+      "startISO": "2025-03-01",
+      "closeISO": "2026-02-18"
+    },
+    "prices": {
+      "asOf": "2026-10-01",
+      "perGram": {
+        "XAU": {
+          "USD": "100"
+        },
+        "XAG": {
+          "USD": "1",
+          "PKR": "280"
+        }
+      },
+      "fx": {
+        "USD": {
+          "USD": "1",
+          "PKR": "280",
+          "GBP": "0.8"
+        }
+      }
+    }
+  },
+  "expected": {
+    "grossZakatable": "1000000",
+    "deductions": "500000",
+    "net": "500000",
+    "zakatDue": "12500",
+    "meetsNisab": true,
+    "hawlStatus": "DUE",
+    "explanationIncludes": [
+      {
+        "ruleId": "DEBT_DEDUCTION_SCOPE",
+        "option": "TWELVE_MONTHS",
+        "subjectId": "m1",
+        "effect": "DEDUCT"
+      }
+    ]
+  }
+}

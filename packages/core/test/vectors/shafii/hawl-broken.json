@@ -1,0 +1,60 @@
+{
+  "name": "Shafii: a dip below nisab during the year breaks the hawl",
+  "reviewedBy": null,
+  "sources": ["https://islamqa.info/en/answers/99381", "https://islamqa.info/en/answers/128168"],
+  "input": {
+    "mode": "SHAFII",
+    "baseCurrency": "USD",
+    "assets": [
+      {
+        "id": "c1",
+        "label": "Cash",
+        "currency": "USD",
+        "category": "CASH",
+        "amount": "20000"
+      }
+    ],
+    "liabilities": [],
+    "hawl": {
+      "startISO": "2025-03-01",
+      "closeISO": "2026-02-18",
+      "dipBelowNisab": "YES",
+      "regainedISO": "2025-10-01"
+    },
+    "prices": {
+      "asOf": "2026-10-01",
+      "perGram": {
+        "XAU": {
+          "USD": "100"
+        },
+        "XAG": {
+          "USD": "1",
+          "PKR": "280"
+        }
+      },
+      "fx": {
+        "USD": {
+          "USD": "1",
+          "PKR": "280",
+          "GBP": "0.8"
+        }
+      }
+    }
+  },
+  "expected": {
+    "grossZakatable": "20000",
+    "deductions": "0",
+    "net": "20000",
+    "zakatDue": "0",
+    "meetsNisab": true,
+    "hawlStatus": "BROKEN",
+    "explanationIncludes": [
+      {
+        "ruleId": "HAWL_MODEL",
+        "option": "CONTINUOUS",
+        "subjectId": "period",
+        "effect": "WARNING"
+      }
+    ]
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "name": "Hanbali: metals not combined; only the silver bucket meets its own nisab",
+  "reviewedBy": null,
+  "sources": [
+    "https://islamqa.info/en/answers/144734",
+    "https://www.islamweb.net/en/fatwa/81848/adding-gold-and-silver-together-for-zakah"
+  ],
+  "input": {
+    "mode": "HANBALI",
+    "baseCurrency": "USD",
+    "assets": [
+      {
+        "id": "g1",
+        "label": "Gold coins",
+        "currency": "USD",
+        "category": "GOLD",
+        "weightGrams": "50",
+        "purity": "1",
+        "usage": "INVESTMENT"
+      },
+      {
+        "id": "s1",
+        "label": "Silver bars",
+        "currency": "USD",
+        "category": "SILVER",
+        "weightGrams": "1000",
+        "purity": "1",
+        "usage": "INVESTMENT"
+      },
+      {
+        "id": "c1",
+        "label": "Cash",
+        "currency": "USD",
+        "category": "CASH",
+        "amount": "1000"
+      }
+    ],
+    "liabilities": [],
+    "hawl": {
+      "startISO": "2025-03-01",
+      "closeISO": "2026-02-18",
+      "dipBelowNisab": "NO"
+    },
+    "prices": {
+      "asOf": "2026-10-01",
+      "perGram": {
+        "XAU": {
+          "USD": "100"
+        },
+        "XAG": {
+          "USD": "1",
+          "PKR": "280"
+        }
+      },
+      "fx": {
+        "USD": {
+          "USD": "1",
+          "PKR": "280",
+          "GBP": "0.8"
+        }
+      }
+    }
+  },
+  "expected": {
+    "grossZakatable": "7000",
+    "deductions": "0",
+    "net": "7000",
+    "zakatDue": "25",
+    "meetsNisab": true,
+    "hawlStatus": "DUE",
+    "explanationIncludes": [
+      {
+        "ruleId": "NISAB_COMBINE_METALS",
+        "option": "SEPARATE",
+        "subjectId": "nisab",
+        "effect": "INFO"
+      }
+    ]
+  }
+}

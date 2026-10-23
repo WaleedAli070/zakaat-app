@@ -1,0 +1,64 @@
+{
+  "name": "Hanafi (Deobandi majority): specific plot bought to resell is zakatable before possession",
+  "reviewedBy": null,
+  "sources": [
+    "https://www.banuri.edu.pk/readquestion/qisto-par-kharede-gay-pilot-main-zakat-ka-hukum-144109201332/06-05-2020"
+  ],
+  "input": {
+    "mode": "HANAFI",
+    "baseCurrency": "PKR",
+    "assets": [
+      {
+        "id": "p1",
+        "label": "DHA file",
+        "currency": "PKR",
+        "category": "REAL_ESTATE",
+        "type": "PLOT_FILE",
+        "marketValue": "2000000",
+        "specificPlot": true,
+        "resaleIntentAtPurchase": true,
+        "possessionTaken": false
+      }
+    ],
+    "liabilities": [],
+    "hawl": {
+      "startISO": "2025-03-01",
+      "closeISO": "2026-02-18"
+    },
+    "prices": {
+      "asOf": "2026-10-01",
+      "perGram": {
+        "XAU": {
+          "USD": "100"
+        },
+        "XAG": {
+          "USD": "1",
+          "PKR": "280"
+        }
+      },
+      "fx": {
+        "USD": {
+          "USD": "1",
+          "PKR": "280",
+          "GBP": "0.8"
+        }
+      }
+    }
+  },
+  "expected": {
+    "grossZakatable": "2000000",
+    "deductions": "0",
+    "net": "2000000",
+    "zakatDue": "50000",
+    "meetsNisab": true,
+    "hawlStatus": "DUE",
+    "explanationIncludes": [
+      {
+        "ruleId": "PLOT_FILE",
+        "option": "FROM_PURCHASE",
+        "subjectId": "p1",
+        "effect": "INCLUDE"
+      }
+    ]
+  }
+}
