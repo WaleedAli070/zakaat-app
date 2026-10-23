@@ -1,0 +1,20 @@
+import type { RuleSelection } from '../rules/registry.js';
+
+/** Precaution (ihtiyat): the option yielding the most zakat on every contested rule. */
+export const GENERAL_2026_1: RuleSelection = {
+  NISAB_METAL: 'SILVER',
+  NISAB_GRAMS: 'LOWER_VALUE',
+  NISAB_COMBINE_METALS: 'COMBINE',
+  HAWL_MODEL: 'START_END',
+  HAWL_NEW_WEALTH: 'ANNEX',
+  JEWELLERY_PERSONAL: 'ZAKATABLE',
+  DEBT_DEDUCTION_SCOPE: 'NONE',
+  DEBT_SURPLUS_OFFSET: 'OFF',
+  RECEIVABLE_TIMING: 'YEARLY_ALL',
+  RETIREMENT_METHOD: 'FULL_VESTED',
+  STOCK_PASSIVE_METHOD: 'FULL_MARKET_VALUE',
+  RENTAL_METHOD: 'HIGHER',
+  PLOT_FILE: 'FROM_PURCHASE',
+  ADVANCE_PAYMENT: 'ALLOWED',
+  QADA_PRIOR_UNPAID: 'NO_DEDUCT',
+};
