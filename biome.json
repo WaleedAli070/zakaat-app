@@ -1,7 +1,23 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.6.2/schema.json",
-  "files": { "includes": ["**", "!**/dist", "!**/node_modules", "!**/fixtures/**"] },
+  "files": {
+    "includes": [
+      "**",
+      "!**/dist",
+      "!**/node_modules",
+      "!**/fixtures",
+      "!**/docs",
+      "!**/.superpowers",
+      "!**/.github",
+      "!pnpm-lock.yaml"
+    ]
+  },
   "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },
-  "linter": { "enabled": true, "rules": { "recommended": true, "suspicious": { "noExplicitAny": "error" } } },
-  "javascript": { "formatter": { "quoteStyle": "single", "semicolons": "always", "trailingCommas": "all" } }
+  "linter": {
+    "enabled": true,
+    "rules": { "preset": "recommended", "suspicious": { "noExplicitAny": "error" } }
+  },
+  "javascript": {
+    "formatter": { "quoteStyle": "single", "semicolons": "always", "trailingCommas": "all" }
+  }
 }
