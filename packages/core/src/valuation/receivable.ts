@@ -19,6 +19,8 @@ export function valueReceivable(a: ReceivableAsset, ctx: ValuationContext): Valu
     inputs: { amount: amt, strength: a.strength },
     output: zakatable,
     effect,
+    // excluded receivables fall due when the money is received; the UI surfaces this
+    ...(include ? {} : { messageSuffix: 'due_on_receipt' }),
   });
   return {
     line: {

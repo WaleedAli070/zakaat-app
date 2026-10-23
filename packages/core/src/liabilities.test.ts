@@ -107,3 +107,27 @@ describe('computeDeductions', () => {
     ).toBe('0');
   });
 });
+
+describe('interest contract', () => {
+  it('FULL and DUE_INSTALMENT take principal-only fields as given', () => {
+    const l: LiabilityInput = { ...mortgage, interestWithinYear: '4000' };
+    const full = computeDeductions({
+      liabilities: [l],
+      ctx: ctx('HANAFI', { DEBT_DEDUCTION_SCOPE: 'FULL' }),
+    });
+    expect(toDS(full.total)).toBe('100000');
+    const instalment = computeDeductions({
+      liabilities: [l],
+      ctx: ctx('HANAFI', { DEBT_DEDUCTION_SCOPE: 'DUE_INSTALMENT' }),
+    });
+    expect(toDS(instalment.total)).toBe('1000');
+  });
+
+  it('TWELVE_MONTHS subtracts interestWithinYear from dueWithinYear', () => {
+    const t = computeDeductions({
+      liabilities: [mortgage],
+      ctx: ctx('HANAFI', { DEBT_DEDUCTION_SCOPE: 'TWELVE_MONTHS' }),
+    });
+    expect(toDS(t.total)).toBe('8000');
+  });
+});

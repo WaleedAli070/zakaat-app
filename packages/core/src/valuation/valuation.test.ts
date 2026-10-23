@@ -237,6 +237,15 @@ describe('receivables', () => {
         .zakatableValue,
     ).toBe('0');
   });
+  it('excluded receivables are flagged as due on receipt', () => {
+    const weak = valueAsset(rc('WEAK'), ctx('HANAFI')).explanations[0];
+    expect(weak?.messageKey).toBe('rule.RECEIVABLE_TIMING.YEARLY_IF_STRONG.EXCLUDE.due_on_receipt');
+    const onReceipt = valueAsset(rc('STRONG'), ctx('HANAFI', { RECEIVABLE_TIMING: 'ON_RECEIPT' }))
+      .explanations[0];
+    expect(onReceipt?.messageKey).toBe('rule.RECEIVABLE_TIMING.ON_RECEIPT.EXCLUDE.due_on_receipt');
+    const strong = valueAsset(rc('STRONG'), ctx('HANAFI')).explanations[0];
+    expect(strong?.messageKey).toBe('rule.RECEIVABLE_TIMING.YEARLY_IF_STRONG.INCLUDE');
+  });
 });
 
 describe('explanations', () => {
