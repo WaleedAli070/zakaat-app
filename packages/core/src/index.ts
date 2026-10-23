@@ -1,3 +1,4 @@
+export * from './calculate.js';
 export * from './citations/index.js';
 export * from './explain.js';
 export * from './hawl.js';
