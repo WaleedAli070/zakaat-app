@@ -22,6 +22,7 @@ export function D(value: DecimalString | Decimal): Decimal {
 }
 
 export function toDS(d: Decimal): DecimalString {
+  if (d.isZero()) return '0';
   return d
     .toFixed()
     .replace(/(\.\d*?)0+$/, '$1')

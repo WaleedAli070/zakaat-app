@@ -25,6 +25,17 @@ describe('D / toDS', () => {
     expect(() => D('NaN')).toThrow(InvalidDecimalError);
   });
 
+  it('normalises negative zero to 0', () => {
+    expect(toDS(D('-0'))).toBe('0');
+    expect(toDS(D('-0.00'))).toBe('0');
+    expect(toDS(ZERO.times(-1))).toBe('0');
+  });
+
+  it('passes Decimal values through unchanged', () => {
+    const x = D('1.5');
+    expect(D(x)).toBe(x);
+  });
+
   it('never produces exponent notation', () => {
     expect(toDS(D('0.0000001'))).toBe('0.0000001');
     expect(toDS(D('123456789012345678901234'))).toBe('123456789012345678901234');
@@ -43,6 +54,7 @@ describe('roundUpToMinorUnit', () => {
     expect(toDS(roundUpToMinorUnit(D('100.001'), 'PKR'))).toBe('100.01');
     expect(toDS(roundUpToMinorUnit(D('100.00'), 'PKR'))).toBe('100');
     expect(toDS(roundUpToMinorUnit(D('0.0001'), 'USD'))).toBe('0.01');
+    expect(toDS(roundUpToMinorUnit(D('-100.001'), 'PKR'))).toBe('-100.01');
   });
 
   it('divides by 40 exactly for the zakat rate', () => {
