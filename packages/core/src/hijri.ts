@@ -9,8 +9,14 @@ export function fromISODate(s: ISODate): Date {
   const m = ISO.exec(s);
   if (!m) throw new RangeError(`Not an ISO date: ${s}`);
   const [, y, mo, d] = m;
-  const date = new Date(Number(y), Number(mo) - 1, Number(d));
-  if (Number.isNaN(date.getTime())) throw new RangeError(`Invalid date: ${s}`);
+  const year = Number(y);
+  const month = Number(mo);
+  const day = Number(d);
+  const date = new Date(2000, 0, 1);
+  date.setFullYear(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() + 1 !== month || date.getDate() !== day) {
+    throw new RangeError(`Invalid date: ${s}`);
+  }
   return date;
 }
 
@@ -48,11 +54,10 @@ export function addHijriYears(h: HijriDate, years: number): HijriDate {
 
 export function nextAnniversary(anniversary: HijriDate, fromISO: ISODate, offsetDays = 0): ISODate {
   const from = gregorianToHijri(fromISO, offsetDays);
-  let candidate: HijriDate = { hy: from.hy, hm: anniversary.hm, hd: anniversary.hd };
-  candidate = addHijriYears(candidate, 0);
-  const candidateISO = hijriToGregorian(candidate, offsetDays);
+  const base: HijriDate = { hy: from.hy, hm: anniversary.hm, hd: anniversary.hd };
+  const candidateISO = hijriToGregorian(addHijriYears(base, 0), offsetDays);
   if (candidateISO > fromISO) return candidateISO;
-  return hijriToGregorian(addHijriYears(candidate, 1), offsetDays);
+  return hijriToGregorian(addHijriYears(base, 1), offsetDays);
 }
 
 export function periodEnd(startISO: ISODate, offsetDays = 0): ISODate {

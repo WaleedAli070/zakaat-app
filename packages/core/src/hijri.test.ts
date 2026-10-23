@@ -15,6 +15,13 @@ describe('iso helpers', () => {
     expect(toISODate(fromISODate('2019-07-03'))).toBe('2019-07-03');
     expect(() => fromISODate('03/07/2019')).toThrow(RangeError);
   });
+
+  it('rejects impossible calendar dates and accepts leap days', () => {
+    expect(() => fromISODate('2019-02-30')).toThrow(RangeError);
+    expect(() => fromISODate('2019-13-01')).toThrow(RangeError);
+    expect(() => fromISODate('2019-04-31')).toThrow(RangeError);
+    expect(toISODate(fromISODate('2020-02-29'))).toBe('2020-02-29');
+  });
 });
 
 describe('gregorian <-> hijri (Umm al-Qura)', () => {
@@ -63,6 +70,29 @@ describe('year arithmetic', () => {
     expect(gregorianToHijri(next)).toEqual({ hy: 1441, hm: 9, hd: 1 });
     const same = nextAnniversary({ hy: 1440, hm: 10, hd: 30 }, '2019-07-02');
     expect(same).toBe('2019-07-03');
+  });
+
+  it('does not strictly-after return the from date itself', () => {
+    expect(nextAnniversary({ hy: 1440, hm: 10, hd: 30 }, '2019-07-03')).not.toBe('2019-07-03');
+  });
+
+  it('does not double-clamp a 30 Dhul-Hijjah anniversary across a short year', () => {
+    let prev = 1440;
+    while (
+      !(
+        daysInHijriMonth(prev, 12) === 30 &&
+        daysInHijriMonth(prev + 1, 12) === 29 &&
+        daysInHijriMonth(prev + 2, 12) === 30
+      )
+    ) {
+      prev++;
+      if (prev > 1500) throw new Error('fixture assumption failed');
+    }
+    const hy = prev + 1;
+    const from = hijriToGregorian({ hy, hm: 12, hd: 29 });
+    expect(nextAnniversary({ hy: prev, hm: 12, hd: 30 }, from)).toBe(
+      hijriToGregorian({ hy: hy + 1, hm: 12, hd: 30 }),
+    );
   });
 
   it('computes period end as the day before the next same hijri date', () => {
