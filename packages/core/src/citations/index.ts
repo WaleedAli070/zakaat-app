@@ -1,4 +1,12 @@
-export type Citation = { id: string; source: string; ref: string; url: string; quote?: string };
+export type Citation = {
+  id: string;
+  source: string;
+  ref: string;
+  url: string;
+  quote?: string;
+  /** true when the source is the project's own design spec rather than an external authority */
+  internal?: true;
+};
 
 export const FIXED_OPTIONS = [
   'MONEY_FULL_VALUE',
@@ -11,6 +19,7 @@ export const FIXED_OPTIONS = [
   'LAND_NO_RESALE_INTENT',
   'HAWL_LATE_CLOSE',
   'DEDUCTIONS_CAPPED_AT_GROSS',
+  'DEDUCTIONS_EXCEED_MONEY_BUCKET',
   'RATE_LUNAR_2_5',
   'ROUND_UP_FINAL_MINOR_UNIT',
 ] as const;
@@ -28,10 +37,11 @@ const c = (
   ref,
   url,
   ...(quote ? { quote } : {}),
+  ...(url === SPEC_URL ? { internal: true as const } : {}),
 });
 
-const SPEC = 'Zakaat App design spec';
-const SPEC_URL =
+const SPEC = 'Zakaat App design spec (internal — pending scholar review)';
+export const SPEC_URL =
   'https://github.com/WaleedAli070/zakaat-app/blob/main/docs/superpowers/specs/2026-10-07-zakaat-app-design.md';
 
 /** keyed `${ruleId}:${option}`; FIXED rules use `FIXED:${option}` */
@@ -790,6 +800,15 @@ export const CITATIONS: Record<string, Citation[]> = {
       1,
       SPEC,
       'Section 6, pipeline (net floors at zero)',
+      SPEC_URL,
+    ),
+  ],
+  'FIXED:DEDUCTIONS_EXCEED_MONEY_BUCKET': [
+    c(
+      'FIXED:DEDUCTIONS_EXCEED_MONEY_BUCKET',
+      1,
+      SPEC,
+      'Section 3.1, NISAB_COMBINE_METALS (SEPARATE: deductions apply to the money bucket only)',
       SPEC_URL,
     ),
   ],
