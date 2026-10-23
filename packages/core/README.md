@@ -41,7 +41,8 @@ console.log(
 - **Rules**: `RULES` registry of rule ids and options; `RULESETS` map each mode to defaults; `resolveRules(mode, overrides)` applies user overrides to overridable rules only.
 - **Explanations**: every rule application emits `{ ruleId, option, subjectId, inputs, output, effect, citationIds, messageKey }`. UI renders `messageKey`; `CITATIONS` resolves ids to sources.
 - **Hawl**: `evaluateHawl` applies START_END or CONTINUOUS with year-end attestations; Hijri arithmetic via Umm al-Qura with a per-user day offset.
-- **Money**: `Decimal` end to end; rate is `net / 40`; rounded up once to the currency minor unit.
+- **Money / nisab**: `Decimal` end to end; the rate is `assessable / 40`, rounded up once to the currency minor unit. Under COMBINE, `assessable` equals `net`. Under SEPARATE, `net` is informational and `assessable` (the sum of the gold, silver and money buckets that each meet their own nisab, see `nisabBuckets`) is what the rate applies to.
+- **Input contract**: `calculate()` runs `validateInput` first and throws `InvalidInputError` (field and subject id) on malformed decimals, negatives, out-of-range percentages or purity, duplicate ids and non-positive prices. Liability `totalOutstanding` and `currentlyDue` are principal only; `dueWithinYear` includes interest and `interestWithinYear` is subtracted under TWELVE_MONTHS. Pin a ruleset with `rulesetId` (`getRulesetById`).
 
 ## Tests
 

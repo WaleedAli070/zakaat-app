@@ -71,15 +71,15 @@ The authoritative, per-cell sourced matrix is `docs/research-fiqh-2026-10-07.md`
 | `DEBT_DEDUCTION_SCOPE` | NONE, DUE_INSTALMENT, TWELVE_MONTHS, FULL | TWELVE_MONTHS | NONE | TWELVE_MONTHS | TWELVE_MONTHS (islamqa.info alternative: NONE) | NONE | yes |
 | `DEBT_SURPLUS_OFFSET` | OFF, ON | OFF | n/a | ON | ON | n/a | yes |
 | `DEBT_INTEREST` | EXCLUDE | all | | | | | no |
-| `RECEIVABLE_TIMING` | YEARLY_IF_STRONG, ON_RECEIPT_ALL_YEARS, ON_RECEIPT_ONE_YEAR | YEARLY_IF_STRONG (weak: from receipt) | YEARLY_IF_STRONG (bad: all years on receipt) | YEARLY_IF_STRONG (loans: one year on receipt) | YEARLY_IF_STRONG (bad: one year on receipt) | YEARLY_IF_STRONG on all | yes |
+| `RECEIVABLE_TIMING` | YEARLY_IF_STRONG, YEARLY_ALL, ON_RECEIPT (all-years vs one-year on receipt is a ledger-time decision for Plan 3, not an engine option) | YEARLY_IF_STRONG (weak: from receipt) | YEARLY_IF_STRONG (bad: all years on receipt) | YEARLY_IF_STRONG (loans: one year on receipt) | YEARLY_IF_STRONG (bad: one year on receipt) | YEARLY_IF_STRONG on all | yes |
 | `RETIREMENT_METHOD` | FULL_VESTED, NET_WITHDRAWABLE, ZAKATABLE_PROPORTION, NONE_UNTIL_ACCESS, COMPULSORY_DEFERRED_VOLUNTARY_YEARLY | COMPULSORY_DEFERRED_VOLUNTARY_YEARLY (Deobandi: compulsory contributions zakated on receipt, voluntary ones yearly) | NONE_UNTIL_ACCESS | NET_WITHDRAWABLE (no Maliki-specific source; institutional) | NONE_UNTIL_ACCESS | FULL_VESTED | yes |
 | `RETIREMENT_TAX_PENALTY` | user inputs with jurisdiction defaults (PK: 0/0 for accessible PF; US: 10% penalty + marginal tax) | | | | | | n/a |
 | `STOCK_TRADING` | FULL_MARKET_VALUE | all | | | | | no |
-| `STOCK_PASSIVE_METHOD` | PROXY_25, PROXY_30, BALANCE_SHEET, FULL_MARKET_VALUE, DIVIDENDS_ONLY | PROXY_30 | PROXY_30 | PROXY_30 | PROXY_30 | FULL_MARKET_VALUE | yes (proxy % editable) |
+| `STOCK_PASSIVE_METHOD` | PROXY_25, PROXY_30, FULL_MARKET_VALUE, DIVIDENDS_ONLY (balance-sheet ratio is supplied per asset as `proxyPercent`) | PROXY_30 | PROXY_30 | PROXY_30 | PROXY_30 | FULL_MARKET_VALUE | yes (proxy % editable) |
 | `HOME` | EXEMPT | all | | | | | no |
 | `RENTAL_METHOD` | SAVED_RENT, QARADAWI_NET_RENT_10 | SAVED_RENT | SAVED_RENT | SAVED_RENT | SAVED_RENT | higher of the two | yes |
 | `LAND_INTENT` | RESALE_INTENT_AT_PURCHASE_REQUIRED | all | | | | | no |
-| `PLOT_FILE` | FROM_PURCHASE, FROM_POSSESSION, RECEIVABLE_IF_NO_PLOT | FROM_PURCHASE (specific plot + resale intent); RECEIVABLE_IF_NO_PLOT | FROM_PURCHASE (general trade-goods rule) | FROM_PURCHASE | FROM_PURCHASE | FROM_PURCHASE | yes (FROM_POSSESSION is the minority option) |
+| `PLOT_FILE` | FROM_PURCHASE, FROM_POSSESSION (pure file without a specific plot is valued as a receivable inside this rule) | FROM_PURCHASE (specific plot + resale intent); RECEIVABLE_IF_NO_PLOT | FROM_PURCHASE (general trade-goods rule) | FROM_PURCHASE | FROM_PURCHASE | FROM_PURCHASE | yes (FROM_POSSESSION is the minority option) |
 | `OTHER_ASSET` | FULL_VALUE | all | | | | | no |
 | `ADVANCE_PAYMENT` | ALLOWED, ALLOWED_ONE_YEAR, ALLOWED_TWO_YEARS, RESTRICTED | ALLOWED | ALLOWED_ONE_YEAR | RESTRICTED (warn) | ALLOWED_TWO_YEARS | ALLOWED | no |
 | `RATE` | LUNAR_2_5 | all; solar 2.577% not offered in v1 | | | | | no |
@@ -302,3 +302,4 @@ Period lifecycle: `OPEN` → (close) `CLOSED` with one authoritative snapshot an
 | Entity | Individual developer accounts for v1 | 2026-10-07 |
 | Stack | Expo SDK 57, Drizzle + expo-sqlite, Hono, Firebase SDK, Vitest, Firebase Emulator; fresh scaffold | 2026-10-21 |
 | Prices | metals.dev + gold-api.com + open.er-api.com + frankfurter.dev; no scraping | 2026-10-07 |
+| Rule options | Engine rule options simplified as above; spec amended to match implementation (Plan 1 final review) | 2026-10-23 |
