@@ -103,3 +103,23 @@ describe('year arithmetic', () => {
     expect(end).toBe(toISODate(expected));
   });
 });
+
+describe('Umm al-Qura range guard', () => {
+  it('accepts the table edges', () => {
+    expect(gregorianToHijri('1937-03-13').hy).toBe(1356);
+    expect(gregorianToHijri('2077-11-16')).toEqual({ hy: 1500, hm: 12, hd: 30 });
+    expect(hijriToGregorian({ hy: 1356, hm: 1, hd: 1 })).toBe('1937-03-13');
+  });
+
+  it('rejects Gregorian dates outside the table', () => {
+    expect(() => gregorianToHijri('1937-03-12')).toThrow(RangeError);
+    expect(() => gregorianToHijri('2077-11-17')).toThrow('Date outside the Umm al-Qura table');
+  });
+
+  it('rejects Hijri years outside the table', () => {
+    expect(() => hijriToGregorian({ hy: 1355, hm: 1, hd: 1 })).toThrow(RangeError);
+    expect(() => hijriToGregorian({ hy: 1501, hm: 1, hd: 1 })).toThrow(RangeError);
+    expect(() => daysInHijriMonth(1501, 1)).toThrow(RangeError);
+    expect(() => addHijriYears({ hy: 1500, hm: 1, hd: 1 }, 1)).toThrow(RangeError);
+  });
+});

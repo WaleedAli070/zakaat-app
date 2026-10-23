@@ -1,4 +1,33 @@
-import uq from '@umalqura/core';
+// The Umm al-Qura table comes from the `@umalqura/core` dependency (not vendored), by controller ruling.
+// Coverage is 1356-1500 AH (about 1937-03-13 to 2077-11-16 CE); dates outside it throw RangeError.
+import type UqType from '@umalqura/core';
+import * as umalquraModule from '@umalqura/core';
+
+type UqFn = typeof UqType;
+
+// @umalqura/core is CJS with __esModule: under Node ESM the default import is the whole
+// module.exports object, under bundlers/Vitest it is the function. Normalise at this one site.
+// The cast is narrow: we probe the shapes at runtime and only accept a function.
+function resolveUq(mod: unknown): UqFn {
+  let cur: unknown = mod;
+  for (let i = 0; i < 3 && typeof cur !== 'function'; i++) {
+    cur = (cur as { default?: unknown } | null | undefined)?.default;
+  }
+  if (typeof cur !== 'function') throw new Error('Unable to resolve @umalqura/core export');
+  return cur as UqFn;
+}
+
+const uq: UqFn = resolveUq(umalquraModule);
+
+const OUT_OF_RANGE = 'Date outside the Umm al-Qura table (1356–1500 AH)';
+const MIN_HY = 1356;
+const MAX_HY = 1500;
+const MIN_GREG_ISO = '1937-03-13';
+const MAX_GREG_ISO = '2077-11-16';
+
+function assertHijriYear(hy: number): void {
+  if (!Number.isInteger(hy) || hy < MIN_HY || hy > MAX_HY) throw new RangeError(OUT_OF_RANGE);
+}
 
 export type HijriDate = { hy: number; hm: number; hd: number };
 export type ISODate = string;
@@ -34,15 +63,20 @@ function shift(d: Date, days: number): Date {
 }
 
 export function gregorianToHijri(iso: ISODate, offsetDays = 0): HijriDate {
-  const u = uq(shift(fromISODate(iso), -offsetDays));
+  const shifted = shift(fromISODate(iso), -offsetDays);
+  const shiftedISO = toISODate(shifted);
+  if (shiftedISO < MIN_GREG_ISO || shiftedISO > MAX_GREG_ISO) throw new RangeError(OUT_OF_RANGE);
+  const u = uq(shifted);
   return { hy: u.hy, hm: u.hm, hd: u.hd };
 }
 
 export function hijriToGregorian(h: HijriDate, offsetDays = 0): ISODate {
+  assertHijriYear(h.hy);
   return toISODate(shift(uq(h.hy, h.hm, h.hd).date, offsetDays));
 }
 
 export function daysInHijriMonth(hy: number, hm: number): number {
+  assertHijriYear(hy);
   return uq(hy, hm, 1).daysInMonth;
 }
 

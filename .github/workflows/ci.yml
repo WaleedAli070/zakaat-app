@@ -18,3 +18,6 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      - name: Node ESM smoke import of dist
+        run: >-
+          node -e "import('./packages/core/dist/index.js').then(m => { const h = m.gregorianToHijri('2019-07-03'); if (h.hy !== 1440 || typeof m.calculate !== 'function') process.exit(1); })"
