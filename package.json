@@ -1,15 +1,18 @@
 {
   "name": "zakaat-app",
   "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "engines": { "node": ">=22" },
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
-    "lint": "turbo run lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write ."
   },
   "devDependencies": {
-    "turbo": "latest",
-    "prettier": "latest"
-  },
-  "packageManager": "pnpm@9.0.0"
+    "@biomejs/biome": "^2.6.2",
+    "turbo": "^2.11.10",
+    "typescript": "~5.9.2"
+  }
 }
