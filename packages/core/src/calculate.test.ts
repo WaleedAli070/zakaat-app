@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { calculate } from './calculate.js';
 import { PRICES } from './testing/fixtures.js';
 import type { AssetInput, CalculationInput, LiabilityInput } from './types.js';
+import { InvalidInputError } from './validate.js';
 import { ENGINE_VERSION } from './version.js';
 
 const gold = (usage: 'WORN' | 'INVESTMENT', grams = '100'): AssetInput => ({
@@ -153,6 +154,109 @@ describe('calculate', () => {
     const ids = out.explanations.map((e) => `${e.ruleId}:${e.option}`);
     expect(ids.slice(0, 2)).toEqual(['FIXED:MONEY_FULL_VALUE', 'JEWELLERY_PERSONAL:ZAKATABLE']);
     expect(ids.slice(-2)).toEqual(['FIXED:RATE_LUNAR_2_5', 'FIXED:ROUND_UP_FINAL_MINOR_UNIT']);
+  });
+
+  it('rejects a purity of 22 rather than valuing it', () => {
+    const bad = { ...gold('WORN'), purity: '22' } as AssetInput;
+    expect(() => run({ mode: 'HANAFI', assets: [bad] })).toThrow(InvalidInputError);
+  });
+
+  it('uses an explicit rulesetId identically to the mode default', () => {
+    const base = { mode: 'HANAFI' as const, assets: [cash('5000')] };
+    expect(run({ ...base, rulesetId: 'hanafi@2026.1' })).toEqual(run(base));
+  });
+
+  it('rejects a rulesetId whose mode differs from input.mode', () => {
+    expect(() =>
+      run({ mode: 'HANAFI', assets: [cash('5000')], rulesetId: 'shafii@2026.1' }),
+    ).toThrow(InvalidInputError);
+  });
+
+  it('COMBINE: assessable equals net and no buckets are reported', () => {
+    const out = run({ mode: 'HANAFI', assets: [cash('5000')] });
+    expect(out.assessable).toBe(out.net);
+    expect(out.nisabBuckets).toBeUndefined();
+  });
+
+  describe('SEPARATE nisab (Hanbali)', () => {
+    const silver = (grams: string): AssetInput => ({
+      id: 's',
+      label: 'Silver',
+      currency: 'USD',
+      category: 'SILVER',
+      weightGrams: grams,
+      purity: '1',
+      usage: 'INVESTMENT',
+    });
+    const debt = (amount: string): LiabilityInput => ({
+      id: 'd',
+      label: 'Debt',
+      kind: 'IMMEDIATE',
+      currency: 'USD',
+      totalOutstanding: amount,
+      currentlyDue: amount,
+      dueWithinYear: amount,
+      interestWithinYear: '0',
+    });
+
+    it('deductions exceeding the money bucket are not taken from metal; warns', () => {
+      const out = run({
+        mode: 'HANBALI',
+        assets: [gold('INVESTMENT', '100'), cash('1000')],
+        liabilities: [debt('5000')],
+      });
+      expect(out.net).toBe('6000');
+      expect(out.assessable).toBe('10000');
+      expect(out.zakatDue).toBe('250');
+      expect(out.nisabBuckets).toEqual({
+        gold: '10000',
+        silver: '0',
+        money: '0',
+        goldMeets: true,
+        silverMeets: false,
+        moneyMeets: false,
+      });
+      const w = out.explanations.find((e) => e.option === 'DEDUCTIONS_EXCEED_MONEY_BUCKET');
+      expect(w?.effect).toBe('WARNING');
+      expect(w?.inputs).toEqual({
+        deductions: '5000',
+        moneyBucketBeforeDeductions: '1000',
+        unapplied: '4000',
+      });
+      expect(w?.citationIds.length).toBeGreaterThan(0);
+    });
+
+    it('no warning when deductions fit in the money bucket', () => {
+      const out = run({
+        mode: 'HANBALI',
+        assets: [gold('INVESTMENT', '100'), cash('9000')],
+        liabilities: [debt('5000')],
+      });
+      expect(out.explanations.some((e) => e.option === 'DEDUCTIONS_EXCEED_MONEY_BUCKET')).toBe(
+        false,
+      );
+    });
+
+    it('silver-only bucket meeting nisab is assessed alone', () => {
+      const out = run({ mode: 'HANBALI', assets: [silver('1000'), cash('100')] });
+      expect(out.assessable).toBe('1000');
+      expect(out.zakatDue).toBe('25');
+      expect(out.nisabBuckets?.silverMeets).toBe(true);
+    });
+
+    it('silver-only bucket below nisab yields nothing due', () => {
+      const out = run({ mode: 'HANBALI', assets: [silver('500')] });
+      expect(out.meetsNisab).toBe(false);
+      expect(out.assessable).toBe('0');
+      expect(out.zakatDue).toBe('0');
+    });
+  });
+
+  it('records a zero unrounded amount when nothing is due', () => {
+    const out = run({ mode: 'HANAFI', assets: [cash('100')] });
+    const r = out.explanations.find((e) => e.option === 'ROUND_UP_FINAL_MINOR_UNIT');
+    expect(r?.inputs.unrounded).toBe('0');
+    expect(r?.output).toBe('0');
   });
 
   it('is deterministic', () => {

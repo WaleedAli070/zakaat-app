@@ -4,12 +4,20 @@ import { computeDeductions } from './liabilities.js';
 import { D, type Decimal, RATE_DIVISOR, roundUpToMinorUnit, sum, toDS, ZERO } from './money.js';
 import { computeNisab } from './nisab.js';
 import { resolveRules } from './rulesets/index.js';
-import type { AssetLine, CalculationInput, CalculationOutput, Explanation } from './types.js';
+import type {
+  AssetLine,
+  CalculationInput,
+  CalculationOutput,
+  Explanation,
+  NisabBuckets,
+} from './types.js';
+import { validateInput } from './validate.js';
 import { type ValuationContext, valueAsset } from './valuation/index.js';
 import { ENGINE_VERSION } from './version.js';
 
 export function calculate(input: CalculationInput): CalculationOutput {
-  const { rulesetId, rules } = resolveRules(input.mode, input.overrides);
+  validateInput(input);
+  const { rulesetId, rules } = resolveRules(input.mode, input.overrides, input.rulesetId);
   const ctx: ValuationContext = {
     mode: input.mode,
     rules,
@@ -79,6 +87,7 @@ export function calculate(input: CalculationInput): CalculationOutput {
 
   let assessable: Decimal;
   let meetsNisab: boolean;
+  let nisabBuckets: NisabBuckets | undefined;
   if (rules.NISAB_COMBINE_METALS === 'COMBINE') {
     assessable = net;
     meetsNisab = net.gte(threshold);
@@ -100,7 +109,25 @@ export function calculate(input: CalculationInput): CalculationOutput {
     const silverBucket = sum(
       lines.filter((l) => l.category === 'SILVER').map((l) => D(l.zakatableValue)),
     );
-    let moneyBucket = gross.minus(goldBucket).minus(silverBucket).minus(deductions);
+    const moneyBeforeDeductions = gross.minus(goldBucket).minus(silverBucket);
+    let moneyBucket = moneyBeforeDeductions.minus(deductions);
+    if (deductions.gt(moneyBeforeDeductions)) {
+      explanations.push(
+        explain({
+          ruleId: 'FIXED',
+          option: 'DEDUCTIONS_EXCEED_MONEY_BUCKET',
+          mode: input.mode,
+          subjectId: 'liabilities',
+          inputs: {
+            deductions,
+            moneyBucketBeforeDeductions: moneyBeforeDeductions,
+            unapplied: deductions.minus(moneyBeforeDeductions),
+          },
+          output: ZERO,
+          effect: 'WARNING',
+        }),
+      );
+    }
     if (moneyBucket.isNegative()) moneyBucket = ZERO;
     const std = nisab.applicable.standard;
     const goldMeets = goldBucket.gt(ZERO) && goldBucket.gte(D(nisab.gold[std]));
@@ -112,6 +139,14 @@ export function calculate(input: CalculationInput): CalculationOutput {
       moneyMeets ? moneyBucket : ZERO,
     ]);
     meetsNisab = goldMeets || silverMeets || moneyMeets;
+    nisabBuckets = {
+      gold: toDS(goldBucket),
+      silver: toDS(silverBucket),
+      money: toDS(moneyBucket),
+      goldMeets,
+      silverMeets,
+      moneyMeets,
+    };
     explanations.push(
       explain({
         ruleId: 'NISAB_COMBINE_METALS',
@@ -143,10 +178,9 @@ export function calculate(input: CalculationInput): CalculationOutput {
   explanations.push(...hawl.explanations);
 
   let zakatDue = ZERO;
-  const unrounded = assessable.div(RATE_DIVISOR);
-  if (meetsNisab && hawl.status === 'DUE') {
-    zakatDue = roundUpToMinorUnit(unrounded, input.baseCurrency);
-  }
+  const isDue = meetsNisab && hawl.status === 'DUE';
+  const unrounded = isDue ? assessable.div(RATE_DIVISOR) : ZERO;
+  if (isDue) zakatDue = roundUpToMinorUnit(unrounded, input.baseCurrency);
   explanations.push(
     explain({
       ruleId: 'FIXED',
@@ -154,7 +188,7 @@ export function calculate(input: CalculationInput): CalculationOutput {
       mode: input.mode,
       subjectId: 'due',
       inputs: { assessable, meetsNisab, hawlStatus: hawl.status },
-      output: meetsNisab && hawl.status === 'DUE' ? unrounded : ZERO,
+      output: unrounded,
       effect: 'INFO',
     }),
   );
@@ -180,6 +214,8 @@ export function calculate(input: CalculationInput): CalculationOutput {
     grossZakatable: toDS(gross),
     deductions: toDS(deductions),
     net: toDS(net),
+    assessable: toDS(assessable),
+    ...(nisabBuckets ? { nisabBuckets } : {}),
     nisab,
     meetsNisab,
     hawlStatus: hawl.status,

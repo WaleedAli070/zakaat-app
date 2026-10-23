@@ -90,11 +90,13 @@ export type LiabilityInput = {
   label: string;
   kind: 'IMMEDIATE' | 'LONG_TERM';
   currency: Currency;
+  /** PRINCIPAL ONLY: the caller must exclude interest. Used by the FULL scope and IMMEDIATE debts. */
   totalOutstanding: DecimalString;
-  /** the instalment or arrears presently payable */
+  /** PRINCIPAL ONLY: the instalment or arrears presently payable, interest excluded by the caller */
   currentlyDue: DecimalString;
-  /** principal + interest falling due in the next 12 lunar months */
+  /** principal + interest falling due in the next 12 lunar months (interest included) */
   dueWithinYear: DecimalString;
+  /** the interest part of `dueWithinYear`; subtracted from it under the TWELVE_MONTHS scope */
   interestWithinYear: DecimalString;
 };
 
@@ -111,6 +113,8 @@ export type HawlInput = {
 
 export type CalculationInput = {
   mode: Mode;
+  /** pin a specific ruleset version (e.g. 'hanafi@2026.1'); its mode must equal `mode` */
+  rulesetId?: string;
   baseCurrency: Currency;
   overrides?: Partial<RuleSelection>;
   assets: readonly AssetInput[];
@@ -153,6 +157,15 @@ export type NisabBreakdown = {
   applicable: { metal: NisabMetal; standard: NisabStandard; value: DecimalString };
 };
 
+export type NisabBuckets = {
+  gold: DecimalString;
+  silver: DecimalString;
+  money: DecimalString;
+  goldMeets: boolean;
+  silverMeets: boolean;
+  moneyMeets: boolean;
+};
+
 export type HawlStatus = 'DUE' | 'BROKEN' | 'RESET';
 
 export type CalculationOutput = {
@@ -164,7 +177,12 @@ export type CalculationOutput = {
   lines: readonly AssetLine[];
   grossZakatable: DecimalString;
   deductions: DecimalString;
+  /** gross minus deductions. Under SEPARATE nisab this is informational; the rate applies to `assessable`. */
   net: DecimalString;
+  /** the amount the 2.5% rate was applied to (equals `net` under COMBINE) */
+  assessable: DecimalString;
+  /** present only under SEPARATE nisab handling */
+  nisabBuckets?: NisabBuckets;
   nisab: NisabBreakdown;
   meetsNisab: boolean;
   hawlStatus: HawlStatus;

@@ -11,5 +11,6 @@ export * from './rules/registry.js';
 export * from './rulesets/index.js';
 export * from './types.js';
 export * from './units.js';
+export * from './validate.js';
 export * from './valuation/index.js';
 export * from './version.js';
